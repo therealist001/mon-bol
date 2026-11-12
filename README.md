@@ -5,7 +5,7 @@ Bibliothèque culinaire personnelle consacrée aux soupes, avec un premier unive
 ## Déploiement Cloudflare Pages
 - Framework preset : None
 - Build command : laisser vide
-- Build output directory : `. ` (point seul : `.`)
+- Build output directory : `.`
 - Root directory : laisser vide
 - Ajouter une base D1 et créer un binding nommé `DB`
 - Exécuter `schema.sql` dans cette base
