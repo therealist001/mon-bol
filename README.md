@@ -9,7 +9,7 @@ Application statique Cloudflare Pages (sans étape de build) avec sauvegarde loc
 ### Déploiement Cloudflare Pages
 - Framework preset : None
 - Build command : laisser vide
-- Build output directory : `/`
+- Build output directory : `.`
 - Root directory : `/`
 - Ajouter une base D1 et créer un binding nommé `DB`
 - Exécuter `schema.sql` dans cette base
