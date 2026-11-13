@@ -123,13 +123,10 @@ function ingredientName(entry){return Array.isArray(entry)?entry[0]:entry&&entry
 function ingredientRelationIndex(ref){if(ref&&ref.ingredientId){const i=data.ingredients.findIndex(g=>ingredientStableId(g)===ref.ingredientId);if(i>=0)return i}return data.ingredients.findIndex(g=>normalizeIngredientName(ingredientName(g))===normalizeIngredientName(ref&&ref.name||""))}
 function phraseInText(text,phrase){const words=normalizeIngredientName(text).split(" ").filter(Boolean),target=normalizeIngredientName(phrase).split(" ").filter(Boolean);if(!target.length)return false;for(let i=0;i<=words.length-target.length;i++)if(words.slice(i,i+target.length).join(" ")===target.join(" "))return true;return false}
 function exactIngredientCandidates(line){
- const matches=[];
- data.ingredients.forEach((g,i)=>{const n=ingredientName(g);if(n&&phraseInText(line,n))matches.push({i,length:normalizeIngredientName(n).split(" ").length})});
  const aliases={"negi":"shiraga-negi","green onion":"shiraga-negi","scallion":"shiraga-negi","oignon nouveau":"shiraga-negi","oignons nouveaux":"shiraga-negi","hoshi shiitake":"shiitake seche","shiitakes seches":"shiitake seche","koikuchi":"koikuchi shoyu","usukuchi":"usukuchi shoyu","iriko":"niboshi","tahin":"neri goma","pate de sesame":"neri goma","vinaigre noir chinkiang":"chinkiang vinegar","petits poissons seches":"niboshi","bonite sechee":"katsuobushi"};
- for(const [alias,canonical] of Object.entries(aliases)){if(phraseInText(line,alias)){const ix=data.ingredients.findIndex(g=>normalizeIngredientName(ingredientName(g))===normalizeIngredientName(canonical));if(ix>=0)matches.push({i:ix,length:normalizeIngredientName(alias).split(" ").length})}}
- if(!matches.length)return [];
- const maxLength=Math.max(...matches.map(x=>x.length));
- return [...new Set(matches.filter(x=>x.length===maxLength).map(x=>x.i))];
+ const terms=[];data.ingredients.forEach((g,i)=>terms.push({label:ingredientName(g),i}));for(const [alias,canonical] of Object.entries(aliases)){const i=data.ingredients.findIndex(g=>normalizeIngredientName(ingredientName(g))===normalizeIngredientName(canonical));if(i>=0)terms.push({label:alias,i})}
+ const found=[];for(const t of terms){const escaped=t.label.split("").map(c=>".*+?^$()|[]{}".includes(c)?"\\"+c:c).join("").replace(/ /g,"\\s+");if(!escaped)continue;const re=new RegExp("(^|[^\\p{L}\\p{N}])("+escaped+")(?=$|[^\\p{L}\\p{N}])","giu");let m;while((m=re.exec(String(line||"")))!==null){const start=m.index+m[1].length,end=start+m[2].length;found.push({i:t.i,start,end,length:end-start})}}
+ found.sort((a,b)=>a.start-b.start||b.length-a.length);const chosen=[];for(const hit of found){if(chosen.some(x=>hit.start<x.end&&hit.end>x.start))continue;chosen.push(hit)}return [...new Set(chosen.map(x=>x.i))];
 }
 function normalizeRelations(){
  let changed=false;
@@ -149,7 +146,7 @@ function normalizeRelations(){
   for(const line of recipe.ingredients||[]){for(const prep of data.preps){const aliases={"chashu-buta":["chashu","chasu","porc braise"],"ajitama":["ajitama","oeuf marine"],"menma":["menma","pousses de bambou"]};const terms=[prep.name,...(aliases[prep.id]||[])];if(terms.some(term=>phraseInText(line,term))&&!seen.has(prep.id)){valid.push({preparationId:prep.id});seen.add(prep.id)}}}
   if(JSON.stringify(recipe.preparationRefs||[])!==JSON.stringify(valid)){recipe.preparationRefs=valid;changed=true}
  }
- if(data.relationsVersion!==2){data.relationsVersion=2;changed=true}
+ if(data.relationsVersion!==3){data.relationsVersion=3;changed=true}
  return changed;
 }
 function normalizeIngredientName(value){return String(value||"").toLocaleLowerCase("fr").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim()}
