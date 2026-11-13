@@ -179,7 +179,7 @@ function renderLinkedText(value){
 }
 function renderIngredientRows(x){
  const lines=(x.ingredients||[]).map(v=>'<li>'+renderLinkedText(v)+'</li>').join("");
- const represented=new Set();for(const line of (x.ingredients||[])){for(const g of data.ingredients){if(phraseInText(line,ingredientName(g)))represented.add(ingredientStableId(g))}}
+ const represented=new Set();for(const line of (x.ingredients||[])){for(const index of exactIngredientCandidates(line))represented.add(ingredientStableId(data.ingredients[index]))}
  const extras=(x.ingredientRefs||[]).filter(r=>{const ix=ingredientRelationIndex(r);return ix>=0&&!represented.has(ingredientStableId(data.ingredients[ix]))}).map(r=>{const ix=ingredientRelationIndex(r),label=ingredientName(data.ingredients[ix]);return '<li><button class="ingredient-link" data-ingredient="'+ix+'">'+esc(label)+'</button>'+(r.quantity||r.unit?' · '+esc([r.quantity,r.unit].filter(Boolean).join(" ")):"")+'</li>'}).join("");
  return lines+extras;
 }
