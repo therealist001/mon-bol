@@ -120,11 +120,12 @@ function linkedPreparations(recipe){return data.preps.filter(p=>(recipe.preparat
 function ingredientStableId(entry){if(Array.isArray(entry)){if(!entry[3])entry[3]="ing-"+normalizeIngredientName(entry[0]).replace(/ /g,"-");return entry[3]}if(entry&&typeof entry==="object"){if(!entry.id)entry.id="ing-"+normalizeIngredientName(entry.name).replace(/ /g,"-");return entry.id}return ""}
 function ingredientName(entry){return Array.isArray(entry)?entry[0]:entry&&entry.name||""}
 function ingredientRelationIndex(ref){if(ref&&ref.ingredientId){const i=data.ingredients.findIndex(g=>ingredientStableId(g)===ref.ingredientId);if(i>=0)return i}return data.ingredients.findIndex(g=>normalizeIngredientName(ingredientName(g))===normalizeIngredientName(ref&&ref.name||""))}
+function phraseInText(text,phrase){const words=normalizeIngredientName(text).split(" ").filter(Boolean),target=normalizeIngredientName(phrase).split(" ").filter(Boolean);if(!target.length)return false;for(let i=0;i<=words.length-target.length;i++)if(words.slice(i,i+target.length).join(" ")===target.join(" "))return true;return false}
 function exactIngredientCandidates(line){
- const text=" "+normalizeIngredientName(line)+" ",found=[];
- data.ingredients.forEach((g,i)=>{const n=normalizeIngredientName(ingredientName(g));if(n&&text.includes(" "+n+" "))found.push(i)});
+ const found=[];
+ data.ingredients.forEach((g,i)=>{const n=ingredientName(g);if(n&&phraseInText(line,n))found.push(i)});
  const aliases={"negi":"oignon nouveau","green onion":"oignon nouveau","scallion":"oignon nouveau","hoshi shiitake":"shiitake seche","koikuchi":"koikuchi shoyu","usukuchi":"usukuchi shoyu","iriko":"niboshi","tahin":"neri goma","pate de sesame":"neri goma","vinaigre noir chinkiang":"chinkiang vinegar","petits poissons seches":"niboshi","bonite sechee":"katsuobushi"};
- for(const [alias,canonical] of Object.entries(aliases)){if(text.includes(" "+normalizeIngredientName(alias)+" ")){const ix=data.ingredients.findIndex(g=>normalizeIngredientName(ingredientName(g))===normalizeIngredientName(canonical));if(ix>=0)found.push(ix)}}
+ for(const [alias,canonical] of Object.entries(aliases)){if(phraseInText(line,alias)){const ix=data.ingredients.findIndex(g=>normalizeIngredientName(ingredientName(g))===normalizeIngredientName(canonical));if(ix>=0)found.push(ix)}}
  return [...new Set(found)];
 }
 function normalizeRelations(){
@@ -142,7 +143,7 @@ function normalizeRelations(){
   const refs=Array.isArray(recipe.preparationRefs)?recipe.preparationRefs:[];
   const valid=refs.filter(ref=>data.preps.some(p=>p.id===(ref.preparationId||ref.id))).map(ref=>({preparationId:ref.preparationId||ref.id}));
   const seen=new Set(valid.map(r=>r.preparationId));
-  for(const line of recipe.ingredients||[]){const text=" "+normalizeIngredientName(line)+" ";for(const prep of data.preps){const name=normalizeIngredientName(prep.name);if(name.length>3&&text.includes(" "+name+" ")&&!seen.has(prep.id)){valid.push({preparationId:prep.id});seen.add(prep.id)}}}
+  for(const line of recipe.ingredients||[]){for(const prep of data.preps){const aliases={"chashu-buta":["chashu","chasu","porc braise"],"ajitama":["ajitama","oeuf marine"],"menma":["menma","pousses de bambou"]};const terms=[prep.name,...(aliases[prep.id]||[])];if(terms.some(term=>phraseInText(line,term))&&!seen.has(prep.id)){valid.push({preparationId:prep.id});seen.add(prep.id)}}}
   if(JSON.stringify(recipe.preparationRefs||[])!==JSON.stringify(valid)){recipe.preparationRefs=valid;changed=true}
  }
  if(data.relationsVersion!==1){data.relationsVersion=1;changed=true}
