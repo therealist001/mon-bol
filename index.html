@@ -152,10 +152,10 @@ function normalizeRelations(){
  return changed;
 }
 function normalizeIngredientName(value){return String(value||"").toLocaleLowerCase("fr").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim()}
-function renderIngredientDetail(index,returnId){const item=data.ingredients[index];if(!item)return;selectedIngredientReturn=returnId;document.body.classList.toggle("detail-open",window.matchMedia("(max-width: 700px)").matches);const iid=ingredientStableId(item),uses=[...data.preps,...data.recipes,...(data.myBowls||[])].filter(p=>(p.ingredientRefs||[]).some(r=>r.ingredientId===iid));$("#content").innerHTML='<div class="ingredient-detail"><button class="btn" id="back-to-recipe">← Retour</button><div class="detail"><div class="eyebrow">Garde-manger · Ingrédient référencé</div><h2>'+esc(item[0])+'</h2><p class="lead">'+esc(item[1])+'</p><div class="callout"><strong>Rôle & utilisations</strong><br>'+esc(item[2]||"À compléter.")+'</div><section class="relation-block"><h3>Recettes & préparations qui l’utilisent</h3>'+(uses.length?'<div class="relation-list">'+uses.map(p=>'<button class="btn relation-link" data-related="'+esc(p.id)+'">'+esc(p.name)+' ↗</button>').join("")+'</div>':'<p class="muted-note">Aucune préparation liée pour le moment. Les nouvelles fiches pourront sélectionner cet ingrédient.</p>')+'</section></div></div>';if(window.matchMedia("(max-width: 700px)").matches)$("#content").scrollIntoView({block:"start",behavior:"instant"})}
+function renderIngredientDetail(index,returnId){const item=data.ingredients[index];if(!item)return;selectedIngredientReturn=returnId;document.body.classList.toggle("detail-open",window.matchMedia("(max-width: 700px)").matches);const iid=ingredientStableId(item),uses=[...data.preps,...data.recipes,...(data.myBowls||[])].filter(p=>(p.ingredientRefs||[]).some(r=>r.ingredientId===iid));$("#content").innerHTML='<div class="ingredient-detail"><button class="btn" id="back-to-recipe">← Retour</button><div class="detail"><div class="eyebrow">Garde-manger · Ingrédient référencé</div><h2>'+esc(item[0])+'</h2><p class="lead">'+esc(item[1])+'</p><div class="callout"><strong>Rôle & utilisations</strong><br>'+esc(item[2]||"À compléter.")+'</div><section class="relation-block"><h3>Recettes & préparations qui l’utilisent</h3>'+(uses.length?'<div class="relation-list">'+uses.map(p=>'<button class="btn relation-link" data-related="'+esc(p.id)+'">'+esc(p.name)+' ↗</button>').join("")+'</div>':'<p class="muted-note">Aucune préparation liée pour le moment. Les nouvelles fiches pourront sélectionner cet ingrédient.</p>')+'</section></div></div>';if(window.matchMedia("(max-width: 700px)").matches)requestAnimationFrame(()=>{const el=$("#content");if(el)window.scrollTo({top:Math.max(0,el.getBoundingClientRect().top+window.scrollY-12),behavior:"instant"})})}
 let selectedIngredientReturn=null;
 let selectedTechniqueReturn=null;
-function renderTechniqueDetail(index,returnId){const item=data.techniques[index];if(!item)return;selectedTechniqueReturn=returnId;$("#content").innerHTML='<div class="detail" style="margin-top:16px"><button class="btn" id="back-to-technique">← Retour</button><div class="eyebrow">Savoir-faire · Technique</div><h2>'+esc(item[0])+'</h2><p class="lead">'+esc(item[1])+'</p></div>';if(window.matchMedia("(max-width: 700px)").matches)$("#content").scrollIntoView({block:"start",behavior:"instant"})}
+function renderTechniqueDetail(index,returnId){const item=data.techniques[index];if(!item)return;selectedTechniqueReturn=returnId;$("#content").innerHTML='<div class="detail" style="margin-top:16px"><button class="btn" id="back-to-technique">← Retour</button><div class="eyebrow">Savoir-faire · Technique</div><h2>'+esc(item[0])+'</h2><p class="lead">'+esc(item[1])+'</p></div>';if(window.matchMedia("(max-width: 700px)").matches)requestAnimationFrame(()=>{const el=$("#content");if(el)window.scrollTo({top:Math.max(0,el.getBoundingClientRect().top+window.scrollY-12),behavior:"instant"})})}
 
 function relatedRecipes(prep){return data.recipes.filter(r=>(r.preparationRefs||[]).some(ref=>(ref.preparationId||ref.id)===prep.id))}
 function renderMyBowls(){const rows=(data.myBowls||[]).slice().sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));$("#content").innerHTML=sectionHead("Créations personnelles","Mes bols","Tes compositions enregistrées, indépendantes des recettes de référence.")+(rows.length?'<div class="grid">'+rows.map(x=>card(x,"Mon bol")).join("")+'</div>':'<div class="empty">Aucun bol enregistré pour le moment. Compose une création puis enregistre-la : elle apparaîtra ici.</div>')}
@@ -192,7 +192,7 @@ function renderDetail(id){
  const journal="";
  const variant="";
  $("#content").innerHTML='<button class="btn" id="back">← Retour</button><div class="detail" style="margin-top:16px"><div class="eyebrow">'+esc(x.type||"Fiche")+' · '+esc(x.origin||"")+'</div><h2>'+esc(x.name)+'</h2><p class="lead">'+esc(x.desc||"")+'</p><div class="meta"><span>◷ '+esc(x.time||"")+'</span><span>Rendement : '+esc(x.yield||"variable")+'</span><span>'+esc(x.level||x.family||"")+'</span>'+(x.parentId?'<span>Variante de '+esc(data.recipes.find(r=>r.id===x.parentId)?.name||"recette")+'</span>':'')+'</div>'+links+'<div class="detail-cols"><div><h3>Ingrédients</h3><ul>'+renderIngredientRows(x)+'</ul></div><div><h3>Protocole</h3>'+(x.steps||[]).map((v,i)=>'<div class="step"><b>'+(i+1)+'</b><p>'+renderLinkedText(v)+'</p></div>').join("")+'</div></div><div class="callout"><strong>Notes & points de vigilance</strong><br>'+esc(x.notes||"À compléter.")+'</div>'+(isRecipe&&x.classification?'<div class="callout"><strong>Repères éditoriaux · '+esc(x.classification)+'</strong><br>'+esc(x.validation||x.sourceStatus||"Référence du carnet")+(x.sourceName?'<br>Source : '+esc(x.sourceName):"")+(x.sourceUrl?'<br><a href="'+esc(x.sourceUrl)+'" target="_blank" rel="noreferrer">Consulter la recette source ↗</a>':"")+'</div>':"")+'<div class="modal-actions">'+(isBowl?'<button class="btn danger" id="delete-entry">Supprimer mon bol</button><button class="btn" id="edit-entry">Modifier mon bol</button>':!isRecipe?'<button class="btn danger" id="delete-entry">Supprimer la fiche</button><button class="btn" id="edit-entry">Modifier la fiche</button>':"")+'</div></div>';
- if(window.matchMedia("(max-width: 700px)").matches)$("#content").scrollIntoView({block:"start",behavior:"instant"});
+ if(window.matchMedia("(max-width: 700px)").matches)requestAnimationFrame(()=>{const el=$("#content");if(el)window.scrollTo({top:Math.max(0,el.getBoundingClientRect().top+window.scrollY-12),behavior:"instant"})});
 }
 function renderComposer(){
  const broths=data.preps.filter(x=>x.type==="Bouillon"||x.type==="Dashi"),tares=data.preps.filter(x=>x.type==="Tare"),oils=data.preps.filter(x=>x.type==="Huile");
@@ -267,12 +267,25 @@ function openForm(item){
 
 $("#global-search-input").addEventListener("input",renderGlobalSearch);
 $("#global-search-clear").addEventListener("click",()=>{$("#global-search-input").value="";renderGlobalSearch();$("#global-search-input").focus()});
+let lastTouchSearchOpen=0;
+function openGlobalSearchResult(e){
+ const hit=e.target.closest("[data-search-kind]");if(!hit)return false;
+ e.preventDefault();e.stopPropagation();
+ const kind=hit.dataset.searchKind,index=hit.dataset.searchIndex,id=hit.dataset.searchId;
+ $("#global-search-results").hidden=true;$("#global-search-input").value="";
+ if(kind==="ingredients")renderIngredientDetail(Number(index),selected);
+ else if(kind==="techniques")renderTechniqueDetail(Number(index),selected);
+ else renderDetail(id);
+ return true;
+}
+// Sur écran tactile, pointerup est plus fiable que click après la fermeture du clavier virtuel.
+$("#global-search-results").addEventListener("pointerup",e=>{
+ if(e.pointerType!=="touch")return;
+ if(openGlobalSearchResult(e))lastTouchSearchOpen=Date.now();
+});
 $("#global-search-results").addEventListener("click",e=>{
- const hit=e.target.closest("[data-search-kind]");if(!hit)return;
- const kind=hit.dataset.searchKind;$("#global-search-results").hidden=true;$("#global-search-input").value="";
- if(kind==="ingredients"){renderIngredientDetail(Number(hit.dataset.searchIndex),selected);return}
- if(kind==="techniques"){renderTechniqueDetail(Number(hit.dataset.searchIndex),selected);return}
- renderDetail(hit.dataset.searchId);
+ if(Date.now()-lastTouchSearchOpen<900){e.preventDefault();e.stopPropagation();return}
+ openGlobalSearchResult(e);
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#global-search-results").hidden){$("#global-search-results").hidden=true;$("#global-search-input").blur()}});
 document.addEventListener("click",e=>{if(!e.target.closest("#global-search-wrap"))$("#global-search-results").hidden=true});
