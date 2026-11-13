@@ -122,11 +122,13 @@ function ingredientName(entry){return Array.isArray(entry)?entry[0]:entry&&entry
 function ingredientRelationIndex(ref){if(ref&&ref.ingredientId){const i=data.ingredients.findIndex(g=>ingredientStableId(g)===ref.ingredientId);if(i>=0)return i}return data.ingredients.findIndex(g=>normalizeIngredientName(ingredientName(g))===normalizeIngredientName(ref&&ref.name||""))}
 function phraseInText(text,phrase){const words=normalizeIngredientName(text).split(" ").filter(Boolean),target=normalizeIngredientName(phrase).split(" ").filter(Boolean);if(!target.length)return false;for(let i=0;i<=words.length-target.length;i++)if(words.slice(i,i+target.length).join(" ")===target.join(" "))return true;return false}
 function exactIngredientCandidates(line){
- const found=[];
- data.ingredients.forEach((g,i)=>{const n=ingredientName(g);if(n&&phraseInText(line,n))found.push(i)});
- const aliases={"negi":"oignon nouveau","green onion":"oignon nouveau","scallion":"oignon nouveau","hoshi shiitake":"shiitake seche","koikuchi":"koikuchi shoyu","usukuchi":"usukuchi shoyu","iriko":"niboshi","tahin":"neri goma","pate de sesame":"neri goma","vinaigre noir chinkiang":"chinkiang vinegar","petits poissons seches":"niboshi","bonite sechee":"katsuobushi"};
- for(const [alias,canonical] of Object.entries(aliases)){if(phraseInText(line,alias)){const ix=data.ingredients.findIndex(g=>normalizeIngredientName(ingredientName(g))===normalizeIngredientName(canonical));if(ix>=0)found.push(ix)}}
- return [...new Set(found)];
+ const matches=[];
+ data.ingredients.forEach((g,i)=>{const n=ingredientName(g);if(n&&phraseInText(line,n))matches.push({i,length:normalizeIngredientName(n).split(" ").length})});
+ const aliases={"negi":"shiraga-negi","green onion":"shiraga-negi","scallion":"shiraga-negi","oignon nouveau":"shiraga-negi","oignons nouveaux":"shiraga-negi","hoshi shiitake":"shiitake seche","shiitakes seches":"shiitake seche","koikuchi":"koikuchi shoyu","usukuchi":"usukuchi shoyu","iriko":"niboshi","tahin":"neri goma","pate de sesame":"neri goma","vinaigre noir chinkiang":"chinkiang vinegar","petits poissons seches":"niboshi","bonite sechee":"katsuobushi"};
+ for(const [alias,canonical] of Object.entries(aliases)){if(phraseInText(line,alias)){const ix=data.ingredients.findIndex(g=>normalizeIngredientName(ingredientName(g))===normalizeIngredientName(canonical));if(ix>=0)matches.push({i:ix,length:normalizeIngredientName(alias).split(" ").length})}}
+ if(!matches.length)return [];
+ const maxLength=Math.max(...matches.map(x=>x.length));
+ return [...new Set(matches.filter(x=>x.length===maxLength).map(x=>x.i))];
 }
 function normalizeRelations(){
  let changed=false;
