@@ -136,7 +136,7 @@ function normalizeRelations(){
  for(const entry of [...data.preps,...data.recipes,...(data.myBowls||[])]){
   if(!entry||!Array.isArray(entry.ingredients))continue;
   const refs=Array.isArray(entry.ingredientRefs)?entry.ingredientRefs:[];
-  const normalized=refs.map(ref=>{const ix=ingredientRelationIndex(ref);if(ix<0)return null;const g=data.ingredients[ix],id=ingredientStableId(g),sourceLine=ref.sourceLine||(entry.ingredients||[]).find(line=>{const c=exactIngredientCandidates(line);return c.length===1&&ingredientStableId(data.ingredients[c[0]])===id});return {...ref,ingredientId:id,name:ingredientName(g),...(sourceLine?{sourceLine}:{})}}).filter(Boolean);
+  const normalized=refs.map(ref=>{const ix=ingredientRelationIndex(ref);if(ix<0)return null;const g=data.ingredients[ix],id=ingredientStableId(g);return {...ref,ingredientId:id,name:ingredientName(g),sourceLine:undefined}}).filter(Boolean);
   const seen=new Set(normalized.map(r=>r.ingredientId));
   for(const line of entry.ingredients){const candidates=exactIngredientCandidates(line);if(candidates.length!==1)continue;const g=data.ingredients[candidates[0]],id=ingredientStableId(g);if(!seen.has(id)){normalized.push({ingredientId:id,name:ingredientName(g),sourceLine:line,source:"exact-line"});seen.add(id)}}
   if(JSON.stringify(entry.ingredientRefs||[])!==JSON.stringify(normalized)){entry.ingredientRefs=normalized;changed=true}
@@ -157,8 +157,9 @@ let selectedIngredientReturn=null;
 function relatedRecipes(prep){return data.recipes.filter(r=>(r.preparationRefs||[]).some(ref=>(ref.preparationId||ref.id)===prep.id))}
 function renderMyBowls(){const rows=(data.myBowls||[]).slice().sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));$("#content").innerHTML=sectionHead("Créations personnelles","Mes bols","Tes compositions enregistrées, indépendantes des recettes de référence.")+(rows.length?'<div class="grid">'+rows.map(x=>card(x,"Mon bol")).join("")+'</div>':'<div class="empty">Aucun bol enregistré pour le moment. Compose une création puis enregistre-la : elle apparaîtra ici.</div>')}
 function renderIngredientRows(x){
- const refs=(x.ingredientRefs||[]).map(r=>{const ix=ingredientRelationIndex(r);if(ix<0)return "";const label=r.sourceLine||ingredientName(data.ingredients[ix]);return '<li><button class="ingredient-link" data-ingredient="'+ix+'">'+esc(label)+'</button>'+(!r.sourceLine&&(r.quantity||r.unit)?' · '+esc([r.quantity,r.unit].filter(Boolean).join(" ")):"")+'</li>'}).join("");
- const legacy=(x.ingredients||[]).filter(v=>{const candidates=exactIngredientCandidates(v);return !(candidates.length===1&&(x.ingredientRefs||[]).some(r=>r.ingredientId===ingredientStableId(data.ingredients[candidates[0]])))}).map(v=>'<li>'+esc(v)+'</li>').join("");
+ const refs=(x.ingredientRefs||[]).map(r=>{const ix=ingredientRelationIndex(r);if(ix<0)return "";const label=ingredientName(data.ingredients[ix]);return '<li><button class="ingredient-link" data-ingredient="'+ix+'">'+esc(label)+'</button>'+(r.quantity||r.unit?' · '+esc([r.quantity,r.unit].filter(Boolean).join(" ")):"")+'</li>'}).join("");
+ const linkedNames=new Set((x.ingredientRefs||[]).map(r=>{const ix=ingredientRelationIndex(r);return ix>=0?normalizeIngredientName(ingredientName(data.ingredients[ix])):""}));
+ const legacy=(x.ingredients||[]).filter(v=>!linkedNames.has(normalizeIngredientName(v))).map(v=>'<li>'+esc(v)+'</li>').join("");
  return refs+legacy;
 }
 function renderDetail(id){
