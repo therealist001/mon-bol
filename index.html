@@ -137,13 +137,14 @@ function mergeSeedContent(saved){
  // Les variantes historiques du bouillon jambon/chorizo désignent une seule fiche.
  const norm=x=>String(x||"").toLocaleLowerCase("fr").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
  const brothKey=n=>{const v=norm(n);return v.includes("bouillon")&&v.includes("jambon")&&v.includes("chorizo")?"bouillon jambon chorizo":v};
- const unique=new Map();
+ const prepCount=saved.preps.length,unique=new Map();
  for(const p of saved.preps){
   const k=brothKey(p?.name);if(!k)continue;
   const prev=unique.get(k);
   if(!prev||p.id==="bouillon-jambon-chorizo")unique.set(k,p);
  }
  saved.preps=[...unique.values()];
+ if(saved.preps.length<prepCount)added+=prepCount-saved.preps.length;
  const broth= saved.preps.find(p=>p.id==="bouillon-jambon-chorizo") || (seed.preps||[]).find(p=>p.id==="bouillon-jambon-chorizo");
  if(broth){
   broth.id="bouillon-jambon-chorizo";
@@ -153,10 +154,10 @@ function mergeSeedContent(saved){
  return added;
 }
 async function load(){
- let saved=null,loadedFromD1=false;
+ let saved=null,loadedFromD1=false,readSucceeded=false;
  try{
   const r=await fetch("/api/state",{cache:"no-store"});
-  if(r.ok){const j=await r.json();if(j&&j.data&&typeof j.data==="object"){saved=j.data;loadedFromD1=true;$("#sync").textContent="Synchronisé avec D1"}}
+  if(r.ok){readSucceeded=true;const j=await r.json();if(j&&j.data&&typeof j.data==="object"){saved=j.data;loadedFromD1=true;$("#sync").textContent="Synchronisé avec D1"}}
  }catch(e){}
  if(!saved){
   try{const local=localStorage.getItem("mon-bol-data");if(local)saved=JSON.parse(local)}catch(e){}
@@ -180,7 +181,7 @@ async function load(){
   if(legacy.length){data.myBowls.unshift(...legacy.map(x=>({...x,source:"composer"})));data.recipes=data.recipes.filter(x=>!legacy.includes(x))}
   data.deletedEntries=data.deletedEntries.filter(x=>x!=="myBowls::bol-ramen-jambon-chorizo-20261114"&&x!=="preps::bouillon-jambon-chorizo");
   const added=mergeSeedContent(data),relationsChanged=normalizeRelations();
-  if(added||legacy.length||relationsChanged)await save();
+  if(added||legacy.length||relationsChanged){if(loadedFromD1)await save();else{localStorage.setItem("mon-bol-data",JSON.stringify(data));$("#sync").textContent="Mode local · D1 indisponible, aucune écriture distante"}}
   else if(loadedFromD1)$("#sync").textContent="Synchronisé avec D1";
   if(normalizeRelations())await save();
  }else{
@@ -188,7 +189,7 @@ async function load(){
   data=structuredClone(seed);
   data.myBowls=Array.isArray(data.myBowls)?data.myBowls:[];
   data.deletedEntries=[];
-  await save();
+  if(readSucceeded)await save();else{localStorage.setItem("mon-bol-data",JSON.stringify(data));$("#sync").textContent="Mode local · connexion D1 à vérifier"}
  }
 }async function save(){localStorage.setItem("mon-bol-data",JSON.stringify(data));$("#sync").textContent="Enregistrement…";try{const r=await fetch("/api/state",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({data})});if(r.ok){$("#sync").textContent="Synchronisé avec D1";return true}$("#sync").textContent="Stockage local actif · D1 à configurer";return false}catch(e){$("#sync").textContent="Stockage local actif · D1 non connecté";return false}}
 function stats(){const count=data.recipes.length+data.preps.length;$("#stats").innerHTML=[[""+data.recipes.length,"Recettes complètes"],[""+data.preps.length,"Préparations"],[""+data.ingredients.length,"Ingrédients référencés"],[""+data.techniques.length,"Techniques"]].map(x=>'<div class="stat"><b>'+x[0]+'</b><span>'+x[1]+'</span></div>').join("")}
