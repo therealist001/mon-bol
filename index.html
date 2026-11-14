@@ -183,7 +183,7 @@ async function load(){
   const added=mergeSeedContent(data),relationsChanged=normalizeRelations();
   if(added||legacy.length||relationsChanged){if(loadedFromD1)await save();else{localStorage.setItem("mon-bol-data",JSON.stringify(data));$("#sync").textContent="Mode local · D1 indisponible, aucune écriture distante"}}
   else if(loadedFromD1)$("#sync").textContent="Synchronisé avec D1";
-  if(normalizeRelations())await save();
+  if(normalizeRelations()){if(loadedFromD1)await save();else localStorage.setItem("mon-bol-data",JSON.stringify(data))}
  }else{
   // Première visite ou base encore vide : amorcer avec le catalogue, sans effacer de données existantes.
   data=structuredClone(seed);
