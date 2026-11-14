@@ -134,23 +134,25 @@ function mergeSeedContent(saved){
   saved[key]=(Array.isArray(saved[key])?saved[key]:[]).filter(x=>x&&(Array.isArray(x)?x.length:typeof x==="object")).filter(x=>{const n=nameOf(x);if(!n||seen.has(n))return false;seen.add(n);return true});
   for(const x of (seed[key]||[]))if(x&&nameOf(x)&&!seen.has(nameOf(x))&&!deleted.has(key+"::"+nameOf(x))){saved[key].push(structuredClone(x));seen.add(nameOf(x));added++}
  }
- // Les variantes historiques du bouillon jambon/chorizo désignent une seule fiche.
+ // Une seule fiche canonique pour le bouillon jambon-chorizo.
  const norm=x=>String(x||"").toLocaleLowerCase("fr").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
- const brothKey=n=>{const v=norm(n);return v.includes("bouillon")&&v.includes("jambon")&&v.includes("chorizo")?"bouillon jambon chorizo":v};
- const prepCount=saved.preps.length,unique=new Map();
- for(const p of saved.preps){
-  const k=brothKey(p?.name);if(!k)continue;
-  const prev=unique.get(k);
-  if(!prev||p.id==="bouillon-jambon-chorizo")unique.set(k,p);
+ const isHamChorizoBroth=p=>{
+  const n=norm(p?.name);
+  return p?.id==="bouillon-jambon-chorizo" ||
+   (n.includes("bouillon")&&n.includes("jambon")&&n.includes("chorizo"));
+ };
+ const beforeBroths=saved.preps.length;
+ const existingBroth=saved.preps.find(p=>p?.id==="bouillon-jambon-chorizo") ||
+  saved.preps.find(isHamChorizoBroth);
+ const seedBroth=(seed.preps||[]).find(p=>p?.id==="bouillon-jambon-chorizo");
+ const canonical=structuredClone(existingBroth||seedBroth);
+ saved.preps=saved.preps.filter(p=>!isHamChorizoBroth(p));
+ if(canonical){
+  canonical.id="bouillon-jambon-chorizo";
+  canonical.name="Bouillon jambon-chorizo";
+  saved.preps.push(canonical);
  }
- saved.preps=[...unique.values()];
- if(saved.preps.length<prepCount)added+=prepCount-saved.preps.length;
- const broth= saved.preps.find(p=>p.id==="bouillon-jambon-chorizo") || (seed.preps||[]).find(p=>p.id==="bouillon-jambon-chorizo");
- if(broth){
-  broth.id="bouillon-jambon-chorizo";
-  broth.name="Bouillon jambon-chorizo";
-  if(!saved.preps.some(p=>p.id===broth.id))saved.preps.push(structuredClone(broth));
- }
+ if(saved.preps.length!==beforeBroths)added+=Math.max(1,beforeBroths-saved.preps.length);
  return added;
 }
 async function load(){
@@ -388,16 +390,38 @@ $("#content").addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&
 $("#hero-discovery").addEventListener("click",e=>{const item=e.target.closest("[data-open]");if(item)renderDetail(item.dataset.open)});
 $("#hero-discovery").addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches("[data-open]")){e.preventDefault();renderDetail(e.target.dataset.open)}});
 let lastTouchCardNavigation=0;
-$("#content").addEventListener("pointerup",e=>{
- if(e.pointerType!=="touch")return;
- const open=e.target.closest("[data-open]");
- const related=e.target.closest("[data-related]");
+// Navigation des fiches en capture au niveau document : fonctionne aussi sur les
+// cartes mobiles dont le clic synthétique est parfois perdu après pointerup.
+function handleEntryNavigation(e){
+ const el=e.target instanceof Element?e.target:null;
+ if(!el)return false;
+ const open=el.closest("[data-open]");
+ const related=el.closest("[data-related]");
  const target=open||related;
- if(!target)return;
- e.preventDefault();e.stopPropagation();
+ if(!target)return false;
+ const id=open?open.dataset.open:related.dataset.related;
+ if(!allEntries().some(x=>x&&x.id===id))return false;
+ e.preventDefault();
+ e.stopPropagation();
+ if(typeof e.stopImmediatePropagation==="function")e.stopImmediatePropagation();
+ renderDetail(id);
+ return true;
+}
+document.addEventListener("pointerup",e=>{
+ if(e.pointerType!=="touch")return;
+ const el=e.target instanceof Element?e.target:null;
+ if(!el?.closest("[data-open],[data-related]"))return;
  lastTouchCardNavigation=Date.now();
- renderDetail(open?open.dataset.open:related.dataset.related);
-});
+ handleEntryNavigation(e);
+},true);
+document.addEventListener("click",e=>{
+ const el=e.target instanceof Element?e.target:null;
+ if(!el?.closest("[data-open],[data-related]"))return;
+ if(Date.now()-lastTouchCardNavigation<1000){
+  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();return;
+ }
+ handleEntryNavigation(e);
+},true);
 $("#content").addEventListener("click",async e=>{const cardOpen=e.target.closest("[data-open]");if(cardOpen){if(Date.now()-lastTouchCardNavigation<900){e.preventDefault();e.stopPropagation();return}renderDetail(cardOpen.dataset.open);return}if(Date.now()-lastTouchCardNavigation<900&&e.target.closest("[data-related]")){e.preventDefault();e.stopPropagation();return}const technique=e.target.closest("[data-technique]");if(technique){renderTechniqueDetail(Number(technique.dataset.technique),selected);return}if(e.target.id==="back-to-technique"){if(selectedTechniqueReturn)renderDetail(selectedTechniqueReturn);else{view="techniques";render()}return}const related=e.target.closest("[data-related]");if(related){renderDetail(related.dataset.related);return}const journalOpen=e.target.closest("[data-journal-open]");if(journalOpen){renderDetail(journalOpen.dataset.journalOpen);return}if(e.target.id==="create-variant")return;const delRef=e.target.closest("[data-delete-ref]");if(delRef){const [kind,index]=delRef.dataset.deleteRef.split("|");deleteReference(kind,Number(index));return}if(e.target.id==="delete-entry"){deleteEntry((data.myBowls||[]).some(x=>x.id===selected)?"myBowls":data.recipes.some(x=>x.id===selected)?"recipes":"preps",selected);return}const o=e.target.closest("[data-open]");if(o){renderDetail(o.dataset.open);return}if(e.target.id==="back-to-recipe"){if(selectedIngredientReturn)renderDetail(selectedIngredientReturn);else{view="ingredients";render()}return}const ingredient=e.target.closest("[data-ingredient]");if(ingredient){renderIngredientDetail(Number(ingredient.dataset.ingredient),selected);return}if(e.target.id==="back"){view=(data.myBowls||[]).some(x=>x.id===selected)?"my-bowls":selected&&data.recipes.some(x=>x.id===selected)?"recipes":"preps";render();return}if(e.target.id==="c-reset"){renderComposer();return}if(e.target.closest("#c-save")){e.preventDefault();e.stopPropagation();const box=$("#composition");if(!box?.dataset.recipeName)return;const id="bol-"+Date.now();const servings=Math.max(1,Math.min(12,Number($("#c-servings")?.value||2)));const recipe={id,name:box.dataset.recipeName,type:"Mon bol",origin:"Création personnelle",time:"À définir",yield:servings+" bols",level:"À tester",desc:"Composition personnelle créée dans l’atelier MON BOL.",ingredients:JSON.parse(box.dataset.ingredients||"[]"),steps:JSON.parse(box.dataset.steps||"[]"),notes:box.dataset.notes||"",image:"",createdAt:new Date().toISOString(),source:"composer",trials:[]};data.myBowls=Array.isArray(data.myBowls)?data.myBowls:[];data.myBowls.unshift(recipe);const persisted=await save();view="my-bowls";filter="";typeFilter="Tous";render();renderDetail(id);$("#content").insertAdjacentHTML("afterbegin",'<div class="callout" role="status"><strong>Bol enregistré.</strong> Cette fiche est ta composition exacte, indépendante des recettes de référence. '+(persisted?"Synchronisation D1 confirmée.":"Copie locale conservée ; synchronisation D1 à vérifier.")+'</div>');return}if(e.target.id==="add-entry")openForm(null);if(e.target.id==="edit-entry"){const x=allEntries().find(y=>y.id===selected);view=(data.myBowls||[]).some(y=>y.id===selected)?"my-bowls":data.recipes.some(y=>y.id===selected)?"recipes":"preps";openForm(x)}});
 $("#content").addEventListener("submit",e=>{});
 $("#content").addEventListener("input",e=>{if(e.target.id==="search"){filter=e.target.value;const pos=e.target.selectionStart;renderList(view);const s=$("#search");s.focus();s.setSelectionRange(pos,pos)}if(e.target.id==="c-servings"||e.target.id==="c-extra")updateComposition()});
